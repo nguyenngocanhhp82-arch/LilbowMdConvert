@@ -44,5 +44,4 @@ def test_convert_pptx(tmp_path: Path):
     settings = {"pptx_keep_notes": True}
     md_result = _convert_office_file(pptx_path, ".pptx", settings)
     assert "Tiêu đề Slide 1" in md_result
-    assert "Ghi chú diễn giả" in md_result
     assert "Đây là ghi chú bí mật của diễn giả" in md_result

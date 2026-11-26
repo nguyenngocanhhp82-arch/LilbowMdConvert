@@ -19,6 +19,8 @@ __pycache__/
 logs/
 samples/output/
 md_output/
+settings.json
+
 
 # Hệ điều hành
 .DS_Store

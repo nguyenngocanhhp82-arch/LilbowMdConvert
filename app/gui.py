@@ -307,14 +307,15 @@ class MainWindow(QMainWindow):
         self.cb_clean_empty = QCheckBox("Xóa hàng bảng và cột bảng rỗng hoàn toàn")
         self.cb_clean_spaces = QCheckBox("Gộp khoảng trắng thừa và các dòng trống liên tiếp")
         self.cb_clean_dividers = QCheckBox("Rút gọn dòng gạch phân cách dài (---, ===)")
-        self.cb_clean_headers = QCheckBox("Xóa số trang / tiêu đề lặp lại (>= 3 lần)")
+        self.cb_clean_form = QCheckBox("Rút gọn chuỗi chấm dài (....) và gạch dưới (____) điền form")
+        self.cb_clean_headers = QCheckBox("Xóa số trang / tiêu đề lặp lại (>= 2 lần)")
         self.cb_clean_images = QCheckBox("Xóa ảnh nhúng base64 và link ảnh")
         self.cb_strip_emphasis = QCheckBox("Bỏ định dạng nhấn mạnh (**đậm**, *nghiêng*)")
 
         for cb in [
             self.cb_clean_nan, self.cb_clean_empty, self.cb_clean_spaces,
-            self.cb_clean_dividers, self.cb_clean_headers, self.cb_clean_images,
-            self.cb_strip_emphasis
+            self.cb_clean_dividers, self.cb_clean_form, self.cb_clean_headers,
+            self.cb_clean_images, self.cb_strip_emphasis
         ]:
             cleaner_layout.addWidget(cb)
         settings_layout.addWidget(group_cleaner)
@@ -326,7 +327,7 @@ class MainWindow(QMainWindow):
         h_ex_mode = QHBoxLayout()
         h_ex_mode.addWidget(QLabel("Kiểu xuất bảng:"))
         self.combo_excel_mode = QComboBox()
-        self.combo_excel_mode.addItems(["Tự động (bảng > 50 dòng dùng CSV)", "Bảng Markdown (dễ đọc)", "CSV trong khối code (rẻ token)"])
+        self.combo_excel_mode.addItems(["Tự động (bảng > 15 dòng dùng CSV)", "Bảng Markdown (dễ đọc)", "CSV trong khối code (rẻ token)"])
         h_ex_mode.addWidget(self.combo_excel_mode, stretch=1)
         excel_layout.addLayout(h_ex_mode)
 
@@ -449,6 +450,7 @@ class MainWindow(QMainWindow):
         self.cb_clean_empty.setChecked(cr.get("remove_empty_rows_cols", True))
         self.cb_clean_spaces.setChecked(cr.get("collapse_whitespace", True))
         self.cb_clean_dividers.setChecked(cr.get("shorten_dividers", True))
+        self.cb_clean_form.setChecked(cr.get("collapse_form_lines", True))
         self.cb_clean_headers.setChecked(cr.get("remove_repeated_headers", True))
         self.cb_clean_images.setChecked(cr.get("remove_images", True))
         self.cb_strip_emphasis.setChecked(cr.get("strip_emphasis", False))
@@ -488,6 +490,7 @@ class MainWindow(QMainWindow):
             "remove_empty_rows_cols": self.cb_clean_empty.isChecked(),
             "collapse_whitespace": self.cb_clean_spaces.isChecked(),
             "shorten_dividers": self.cb_clean_dividers.isChecked(),
+            "collapse_form_lines": self.cb_clean_form.isChecked(),
             "remove_repeated_headers": self.cb_clean_headers.isChecked(),
             "remove_images": self.cb_clean_images.isChecked(),
             "strip_emphasis": self.cb_strip_emphasis.isChecked(),

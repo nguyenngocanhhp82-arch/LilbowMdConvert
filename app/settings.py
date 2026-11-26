@@ -19,14 +19,15 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
         "remove_empty_rows_cols": True,
         "collapse_whitespace": True,
         "shorten_dividers": True,
+        "collapse_form_lines": True,
         "remove_repeated_headers": True,
         "remove_images": True,
         "strip_emphasis": False,
     },
 
     # Tùy chọn xử lý Excel
-    "excel_export_mode": "auto",       # "markdown", "csv", "auto" (bảng > 50 dòng dùng CSV)
-    "excel_auto_threshold": 50,        # Ngưỡng dòng để tự chuyển sang CSV
+    "excel_export_mode": "auto",       # "markdown", "csv", "auto" (bảng > 15 dòng dùng CSV)
+    "excel_auto_threshold": 15,        # Ngưỡng dòng để tự chuyển sang CSV
     "excel_skip_hidden_sheets": True,  # Bỏ qua sheet ẩn
     "excel_limit_rows": 0,             # 0 = không giới hạn, >0 = chỉ lấy N dòng đầu
     "excel_compact_numbers": True,     # 1.0 -> 1, bỏ số 0 thừa sau dấu phẩy
@@ -63,6 +64,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
             "remove_empty_rows_cols": True,
             "collapse_whitespace": True,
             "shorten_dividers": True,
+            "collapse_form_lines": True,
             "remove_repeated_headers": True,
             "remove_images": True,
             "strip_emphasis": True,
@@ -80,12 +82,13 @@ PRESETS: Dict[str, Dict[str, Any]] = {
             "remove_empty_rows_cols": True,
             "collapse_whitespace": True,
             "shorten_dividers": True,
+            "collapse_form_lines": True,
             "remove_repeated_headers": True,
             "remove_images": True,
             "strip_emphasis": False,
         },
         "excel_export_mode": "auto",
-        "excel_auto_threshold": 50,
+        "excel_auto_threshold": 15,
         "excel_skip_hidden_sheets": True,
         "excel_compact_numbers": True,
         "excel_format_dates": True,

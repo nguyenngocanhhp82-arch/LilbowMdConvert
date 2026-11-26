@@ -98,6 +98,17 @@ def _process_single_markdown_table(table_lines: List[str]) -> List[str]:
         # Bảng chỉ có tiêu đề hoặc rỗng hoàn toàn
         return []
 
+    # Nếu dòng đầu tiên là dòng phân cách (do dòng tiêu đề trước đó rỗng hoàn toàn bị xóa),
+    # nâng dòng dữ liệu đầu tiên lên làm tiêu đề bảng
+    if kept_is_delim and kept_is_delim[0] is True and len(kept_rows) > 1:
+        for d_idx in range(1, len(kept_rows)):
+            if not kept_is_delim[d_idx]:
+                hdr = kept_rows.pop(d_idx)
+                kept_rows.insert(0, hdr)
+                kept_is_delim.pop(d_idx)
+                kept_is_delim.insert(0, False)
+                break
+
     # Chuẩn hóa số lượng cột cho đều nhau
     max_cols = max(len(r) for r in kept_rows)
     for r in kept_rows:
@@ -197,10 +208,25 @@ def shorten_divider_lines(text: str) -> str:
 
     return text
 
-def remove_repeated_headers_footers(text: str, min_repeats: int = 3, max_length: int = 80) -> str:
+def collapse_form_dots_and_underlines(text: str) -> str:
     """
-    Xóa header/footer/số trang lặp lại (dòng xuất hiện từ 3 lần trở lên và ngắn dưới 80 ký tự).
-    Ví dụ: 'Trang 1', 'Bản quyền thuộc về...', 'Tài liệu mật nội bộ'
+    Rút gọn các chuỗi chấm dài (.........) hoặc gạch dưới (_________) thường thấy
+    trong các biểu mẫu Word/PDF điền thông tin, giúp tiết kiệm lượng lớn token.
+    """
+    if not text:
+        return ""
+
+    # Rút gọn chuỗi chấm từ 3 dấu chấm trở lên thành ...
+    text = re.sub(r'\.{3,}', '...', text)
+    # Rút gọn chuỗi gạch dưới từ 3 dấu trở lên thành ___
+    text = re.sub(r'_{3,}', '___', text)
+
+    return text
+
+def remove_repeated_headers_footers(text: str, min_repeats: int = 2, max_length: int = 90) -> str:
+    """
+    Xóa header/footer/số trang lặp lại (dòng xuất hiện từ 2 lần trở lên và ngắn dưới 90 ký tự).
+    Ví dụ: 'Trang 1 / 10', 'Bản quyền thuộc về...', 'Tài liệu mật nội bộ'
     """
     if not text:
         return ""
@@ -222,13 +248,17 @@ def remove_repeated_headers_footers(text: str, min_repeats: int = 3, max_length:
     counts = Counter(candidate_lines)
     repeated_patterns = {line for line, cnt in counts.items() if cnt >= min_repeats}
 
-    # Bổ sung regex nhận diện số trang phổ biến: 'Trang 1', 'Trang 1 / 10', 'Page 1 of 5'
+    # Bổ sung regex nhận diện số trang và tiêu đề đánh dấu tài liệu phổ biến
     page_regex = re.compile(r'^(?:Trang|Page)\s+\d+(?:\s*(?:/|của|of)\s*\d+)?$', re.IGNORECASE)
+    doc_stamp_regex = re.compile(
+        r'^(?:TÀI LIỆU NỘI BỘ|BẢN DỰ THẢO|CONFIDENTIAL|DRAFT|LƯU HÀNH NỘI BỘ|MẬT|TUYỆT MẬT|BẢN QUYỀN THUỘC VỀ.*)$',
+        re.IGNORECASE
+    )
 
     output_lines = []
     for line in lines:
         s = line.strip()
-        if s in repeated_patterns or (page_regex.match(s) and len(s) < 30):
+        if s in repeated_patterns or (page_regex.match(s) and len(s) < 30) or doc_stamp_regex.match(s):
             continue
         output_lines.append(line)
 
@@ -302,6 +332,10 @@ def clean_markdown(text: str, options: Optional[Dict[str, bool]] = None) -> str:
     # 4. Rút gọn đường phân cách
     if options.get("shorten_dividers", True):
         text = shorten_divider_lines(text)
+
+    # 4b. Rút gọn chuỗi chấm dài / gạch dưới điền biểu mẫu
+    if options.get("collapse_form_lines", True):
+        text = collapse_form_dots_and_underlines(text)
 
     # 5. Xóa header/footer/số trang lặp lại
     if options.get("remove_repeated_headers", True):

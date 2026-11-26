@@ -19,12 +19,13 @@ Phần mềm được thiết kế với giao diện đồ họa trực quan 100
    - Xóa bỏ triệt để các hàng bảng và cột bảng rỗng hoàn toàn.
    - Gộp khoảng trắng thừa và hàng loạt dòng trống liên tiếp thành tối đa 1 dòng trống.
    - Rút gọn đường phân cách gạch ngang dài thành `---`.
+   - Rút gọn chuỗi chấm dài (`.........`) hoặc gạch dưới (`_________`) trong các biểu mẫu điền thông tin.
    - Phát hiện và loại bỏ số trang, tiêu đề lặp đi lặp lại ở nhiều trang (header/footer).
    - Xóa link ảnh nhúng dạng base64 (nguyên nhân hàng đầu gây lãng phí hàng chục nghìn token).
    - Tùy chọn bỏ định dạng nhấn mạnh (**đậm**, *nghiêng*) để văn bản nhẹ hơn.
 
 3. **3 Cấu hình mẫu (Presets) tiện lợi:**
-   - ⚡ **Cân bằng (Mặc định):** Giữ nguyên độ dễ đọc, làm sạch mọi dữ liệu rác, tự động dùng CSV cho bảng trên 50 dòng.
+   - ⚡ **Cân bằng (Mặc định):** Giữ nguyên độ dễ đọc, làm sạch mọi dữ liệu rác, tự động dùng CSV cho bảng trên 15 dòng để tiết kiệm token.
    - 🚀 **Giảm tối đa token:** Bật toàn bộ các bộ lọc, bỏ in đậm/nghiêng, xuất bảng Excel dạng CSV.
    - 📄 **Giữ nguyên bản:** Giữ lại tối đa cấu trúc gốc của tài liệu.
 

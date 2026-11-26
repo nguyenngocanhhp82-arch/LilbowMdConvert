@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import sys
 import time
@@ -106,17 +107,56 @@ def resolve_output_path(
 
     return target_path
 
+def get_raw_baseline_tokens(path: Path) -> int:
+    """
+    Tính lượng token ban đầu của tài liệu nguyên bản (chưa qua tối ưu, lọc rác, nén bảng).
+    Đây là mốc chuẩn (baseline) phản ánh đúng chi phí nếu người dùng nạp nguyên bản vào AI.
+    """
+    ext = path.suffix.lower()
+    try:
+        if ext in {".xlsx", ".xls", ".xlsm"}:
+            # Đo lượng token nguyên bản của toàn bộ các sheet (kể cả sheet ẩn),
+            # với định dạng bảng đầy đủ và dữ liệu thô
+            import openpyxl
+            wb = openpyxl.load_workbook(str(path), data_only=False, read_only=True)
+            total_cells_text = []
+            for sname in wb.sheetnames:
+                total_cells_text.append(f"## {sname}")
+                ws = wb[sname]
+                for row in ws.iter_rows(values_only=True):
+                    row_strs = [str(c) if c is not None else "" for c in row]
+                    if any(c != "" for c in row_strs):
+                        total_cells_text.append("| " + " | ".join(row_strs) + " |")
+            wb.close()
+            if total_cells_text:
+                return count_tokens("\n".join(total_cells_text))
+    except Exception:
+        pass
+
+    try:
+        md_engine = MarkItDown()
+        res = md_engine.convert(str(path))
+        raw_text = res.text_content or ""
+        return count_tokens(raw_text)
+    except Exception:
+        pass
+
+    return 0
+
 def extract_raw_markdown(
     path: Path,
     settings: Optional[Dict[str, Any]] = None,
     cancel_check: Optional[Callable[[], bool]] = None
 ) -> Tuple[str, int]:
     """
-    Trích xuất văn bản thô của tài liệu trước khi làm sạch và tính lượng token ban đầu.
-    Trả về: (raw_markdown_text, tokens_count)
+    Trích xuất văn bản của tài liệu và tính lượng token ban đầu chuẩn xác của tài liệu nguyên bản.
+    Trả về: (optimized_raw_md, raw_baseline_tokens)
     """
     if settings is None:
         settings = settings_manager.get_all()
+
+    # 1. Tính lượng token ban đầu chuẩn xác của tài liệu nguyên bản
+    raw_baseline_tokens = get_raw_baseline_tokens(path)
 
     ext = path.suffix.lower()
     if ext in {".xlsx", ".xls", ".xlsm", ".csv"}:
@@ -132,8 +172,10 @@ def extract_raw_markdown(
         result = md_engine.convert(str(path))
         raw_md = result.text_content or ""
 
-    tokens = count_tokens(raw_md)
-    return raw_md, tokens
+    if raw_baseline_tokens <= 0:
+        raw_baseline_tokens = count_tokens(raw_md)
+
+    return raw_md, raw_baseline_tokens
 
 def convert_single_file(
     file_path: str,
@@ -182,7 +224,7 @@ def convert_single_file(
     try:
         if precomputed_raw_md is not None and precomputed_raw_md != "":
             raw_md = precomputed_raw_md
-            tokens_before = precomputed_tokens if precomputed_tokens is not None else count_tokens(raw_md)
+            tokens_before = precomputed_tokens if precomputed_tokens is not None and precomputed_tokens > 0 else get_raw_baseline_tokens(path)
         else:
             raw_md, tokens_before = extract_raw_markdown(path, settings, cancel_check=cancel_check)
     except Exception as e:
@@ -209,9 +251,11 @@ def convert_single_file(
             error_message="Người dùng đã hủy tiến trình."
         )
 
-    # Đảm bảo tokens_before đã được tính
+    # Đảm bảo tokens_before phản ánh đúng lượng token nguyên bản
     if tokens_before <= 0:
-        tokens_before = count_tokens(raw_md)
+        tokens_before = get_raw_baseline_tokens(path)
+        if tokens_before <= 0:
+            tokens_before = count_tokens(raw_md)
 
     # 4. Làm sạch bằng cleaner
     cleaner_rules = settings.get("cleaner_rules", {})
@@ -291,22 +335,28 @@ def _convert_office_file(path: Path, ext: str, settings: Dict[str, Any]) -> str:
     content = result.text_content or ""
 
     # Với PowerPoint, nếu có tùy chọn giữ ghi chú diễn giả:
-    if ext == ".pptx" and settings.get("pptx_keep_notes", True):
-        try:
-            from pptx import Presentation
-            prs = Presentation(str(path))
-            slide_notes = []
-            has_any_notes = False
-            for idx, slide in enumerate(prs.slides, 1):
-                if slide.has_notes_slide:
-                    notes_text = slide.notes_slide.notes_text_frame.text.strip()
-                    if notes_text:
-                        has_any_notes = True
-                        slide_notes.append(f"### Ghi chú Slide {idx}\n{notes_text}")
-            if has_any_notes:
-                content += "\n\n## Ghi chú diễn giả (Speaker Notes)\n" + "\n\n".join(slide_notes)
-        except Exception as e:
-            log_warning(f"Không thể đọc ghi chú PowerPoint {path.name}: {e}")
+    if ext == ".pptx":
+        if not settings.get("pptx_keep_notes", True):
+            # Bỏ ghi chú diễn giả để tiết kiệm token tối đa
+            content = re.sub(r'###\s*Notes:.*?(?=(?:<!--\s*Slide number:|\Z))', '', content, flags=re.DOTALL)
+        else:
+            # Nếu MarkItDown chưa có khối Notes thì fallback sang python-pptx để lấy
+            if "### Notes:" not in content and "### Ghi chú:" not in content:
+                try:
+                    from pptx import Presentation
+                    prs = Presentation(str(path))
+                    slide_notes = []
+                    has_any_notes = False
+                    for idx, slide in enumerate(prs.slides, 1):
+                        if slide.has_notes_slide:
+                            notes_text = slide.notes_slide.notes_text_frame.text.strip()
+                            if notes_text:
+                                has_any_notes = True
+                                slide_notes.append(f"### Ghi chú Slide {idx}\n{notes_text}")
+                    if has_any_notes:
+                        content += "\n\n## Ghi chú diễn giả (Speaker Notes)\n" + "\n\n".join(slide_notes)
+                except Exception as e:
+                    log_warning(f"Không thể đọc ghi chú PowerPoint {path.name}: {e}")
 
     return content
 
