@@ -1,0 +1,73 @@
+name: Build Windows Application (LilbowMdConvert)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Native Windows Executable (.exe)
+    runs-on: windows-latest
+
+    env:
+      PYTHONIOENCODING: "utf-8"
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        shell: powershell
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run automated test suite (Pytest)
+        shell: powershell
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          python -m pytest -v
+
+      - name: Build Standalone Windows Executable with PyInstaller
+        shell: powershell
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          python -m PyInstaller --noconfirm --onefile --windowed `
+            --name LilbowMdConvert `
+            --icon icon.ico `
+            --collect-all markitdown `
+            --collect-all magika `
+            main.py
+
+      - name: Verify build output
+        shell: powershell
+        run: |
+          if (Test-Path "dist\LilbowMdConvert.exe") {
+              $size = (Get-Item "dist\LilbowMdConvert.exe").Length / 1MB
+              Write-Host "✅ Đã tạo thành công: dist\LilbowMdConvert.exe ($([math]::Round($size, 2)) MB)"
+          } else {
+              Write-Error "❌ Không tìm thấy file dist\LilbowMdConvert.exe sau khi đóng gói!"
+              exit 1
+          }
+
+      - name: Upload Build Artifact (LilbowMdConvert.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: LilbowMdConvert-Windows-x64
+          path: dist/LilbowMdConvert.exe
+          if-no-files-found: error
+          retention-days: 30

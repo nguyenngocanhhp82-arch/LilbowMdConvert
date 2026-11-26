@@ -1,0 +1,25 @@
+# Môi trường ảo Python
+.venv/
+env/
+venv/
+ENV/
+
+# PyInstaller build outputs
+build/
+dist/
+*.spec
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Thư mục log và kết quả tạm
+logs/
+samples/output/
+md_output/
+
+# Hệ điều hành
+.DS_Store
+Thumbs.db
